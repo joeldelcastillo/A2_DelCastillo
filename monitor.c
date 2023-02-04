@@ -6,7 +6,14 @@
 
 #define SERVER "127.0.0.1"
 #define BUFLEN 512 // Max length of buffer
-#define PORT 8888  // The port on which to send data
+int MY_PORT = 8888;  // The port on which to send data
+int OTHER_PORT = 8888;
+
+struct sockaddr_in si_me;
+struct sockaddr_in si_other;
+int s, i, slen = sizeof(si_other), recv_len;
+char buf[BUFLEN];
+char message[BUFLEN];
 
 void die(char *s)
 {
@@ -14,42 +21,50 @@ void die(char *s)
 	exit(1);
 }
 
+void SETUP_OTHER_PORT(int OTHER){
+    // zero out the structure
+    memset((char *)&si_other, 0, sizeof(si_other));
+    si_other.sin_family = AF_INET;
+    si_other.sin_port = htons(OTHER);
+
+    if (inet_aton(SERVER, &si_other.sin_addr) == 0)
+    {
+        fprintf(stderr, "inet_aton() failed\n");
+        // exit(1);
+    }
+}
+
+void SETUP_MY_PORT(int port){
+	memset((char *)&si_me, 0, sizeof(si_me));
+	si_me.sin_family = AF_INET;
+	si_me.sin_port = htons(port);
+	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+}
+
 
 void setUp_Socket_Server(){
-    struct sockaddr_in si_me, si_other;
 
-	int s, i, slen = sizeof(si_other), recv_len;
-	char buf[BUFLEN];
-    char message[BUFLEN];
-
-	// create a UDP socket
+    // create a UDP socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	{
 		die("socket");
 	}
 
-	// zero out the structure
-    memset((char *)&si_other, 0, sizeof(si_other));
-    si_other.sin_family = AF_INET;
-    si_other.sin_port = htons(PORT);
+    SETUP_OTHER_PORT(OTHER_PORT);
+    SETUP_MY_PORT(MY_PORT);
 
-    if (inet_aton(SERVER, &si_other.sin_addr) == 0)
-    {
-        fprintf(stderr, "inet_aton() failed\n");
-        exit(1);
-    }
-
-	memset((char *)&si_me, 0, sizeof(si_me));
-	si_me.sin_family = AF_INET;
-	si_me.sin_port = htons(PORT);
-	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	// bind socket to port
-	if (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
+    // bind socket to port
+    while (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
 	{
-		die("bind");
+        MY_PORT++;
+        SETUP_MY_PORT(MY_PORT);
+        printf("MY_PORT: %d \n", MY_PORT);
+		// die("bind");
 	}
+}
 
+void sendMessage(int PORT_OTHER){
+    SETUP_OTHER_PORT(PORT_OTHER);
 	// keep listening for data
 	while (1)
 	{
@@ -78,11 +93,14 @@ void setUp_Socket_Server(){
 		printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 		printf("Data: %s\n", buf);
 	}
-
-	close(s);
+    close(s);
 }
 
-void die(char *s);
+void listen(){
+
+}
+
+
 
 // decode message received
 // Message decode_Message(char[] message);

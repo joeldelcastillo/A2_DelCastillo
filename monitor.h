@@ -30,8 +30,8 @@ struct Monitor_s
 // set the server environment
 void setUp_Socket_Server();
 
-// set the server environment
-void setUp_Socket_Clients();
+void sendMessage(int PORT_OTHER);
+
 
 // listening data
 void listen_Socket();
