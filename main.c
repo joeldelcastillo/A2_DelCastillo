@@ -12,6 +12,12 @@ int main()
     printf("\n");
 
     setUp_Socket_Server();
+    int otherPort;
+    printf("Type a port: ");
+    scanf("%d", &otherPort);
+    sendMessage(otherPort);
+    
+
 
     return 0;
 }

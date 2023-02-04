@@ -96,9 +96,6 @@ void sendMessage(int PORT_OTHER){
     close(s);
 }
 
-void listen(){
-
-}
 
 
 
