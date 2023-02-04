@@ -11,5 +11,7 @@ int main()
     printf("============================================= \n");
     printf("\n");
 
+    setUp_Socket_Server();
+
     return 0;
 }
