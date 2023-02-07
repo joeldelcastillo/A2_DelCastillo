@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
 #include "monitor.h"
 #include <string.h>
 #include "list.h"
+
 
 #define SERVER "127.0.0.1"
 #define BUFLEN 512 // Max length of buffer
@@ -42,13 +45,11 @@ void SETUP_MY_PORT(int port){
 }
 
 
-void setUp_Socket_Server(){
+void SETUP_SOCKET_SERVER(){
 
     // create a UDP socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-	{
 		die("socket");
-	}
 
     SETUP_OTHER_PORT(OTHER_PORT);
     SETUP_MY_PORT(MY_PORT);
@@ -58,9 +59,11 @@ void setUp_Socket_Server(){
 	{
         MY_PORT++;
         SETUP_MY_PORT(MY_PORT);
-        printf("MY_PORT: %d \n", MY_PORT);
+        
 		// die("bind");
 	}
+
+    printf("MY_PORT: %d \n", MY_PORT);
 }
 
 void sendMessage(int PORT_OTHER){

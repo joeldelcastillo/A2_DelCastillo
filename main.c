@@ -11,7 +11,7 @@ int main()
     printf("============================================= \n");
     printf("\n");
 
-    setUp_Socket_Server();
+    SETUP_SOCKET_SERVER();
     int otherPort;
     printf("Type a port: ");
     scanf("%d", &otherPort);
