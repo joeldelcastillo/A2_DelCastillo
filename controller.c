@@ -1,8 +1,9 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "monitor.h"
+#include "controller.h"
 #include <string.h>
 #include "list.h"
 
@@ -11,18 +12,28 @@
 #define BUFLEN 512 // Max length of buffer
 int MY_PORT = 8888;  // The port on which to send data
 int OTHER_PORT = 8888;
+int otherPort;
 
 struct sockaddr_in si_me;
 struct sockaddr_in si_other;
 int s, i, slen = sizeof(si_other), recv_len;
 char buf[BUFLEN];
 char message[BUFLEN];
+bool IS_READY = false;
+
+typedef struct Controller_s Controller;
+struct Controller_s
+{
+    List messages_send;
+    List messages_receive;
+};
 
 void die(char *s)
 {
 	perror(s);
 	exit(1);
 }
+
 
 void SETUP_OTHER_PORT(int OTHER){
     // zero out the structure
@@ -37,6 +48,7 @@ void SETUP_OTHER_PORT(int OTHER){
     }
 }
 
+
 void SETUP_MY_PORT(int port){
 	memset((char *)&si_me, 0, sizeof(si_me));
 	si_me.sin_family = AF_INET;
@@ -47,6 +59,7 @@ void SETUP_MY_PORT(int port){
 
 void SETUP_SOCKET_SERVER(){
 
+    pthread_t tid;
     // create a UDP socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		die("socket");
@@ -59,15 +72,30 @@ void SETUP_SOCKET_SERVER(){
 	{
         MY_PORT++;
         SETUP_MY_PORT(MY_PORT);
-        
 		// die("bind");
 	}
-
+    
     printf("MY_PORT: %d \n", MY_PORT);
+
+    // Create threads
+    pthread_create(&tid, NULL, await_Input, (void *)&tid);
+
+    pthread_exit(NULL);
 }
 
-void sendMessage(int PORT_OTHER){
-    SETUP_OTHER_PORT(PORT_OTHER);
+
+void *await_Input(void *vargp){
+    pthread_t tid;
+    printf("Type a port: ");
+    scanf("%d", &otherPort);
+    IS_READY = true;
+    pthread_create(&tid, NULL, send_Message, (void *)&tid);
+}
+
+
+void *send_Message(void *vargp){
+
+    SETUP_OTHER_PORT(otherPort);
 	// keep listening for data
 	while (1)
 	{
@@ -98,6 +126,16 @@ void sendMessage(int PORT_OTHER){
 	}
     close(s);
 }
+
+
+
+
+
+
+
+// Message receive_Message(char message[]){
+
+// }
 
 
 
