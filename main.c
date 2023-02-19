@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "controller.h"
-
+#include<sys/socket.h>
 
 int MY_PORT;
 int OTHER_PORT;
@@ -27,11 +27,13 @@ int main(int argc, char *argv[])
     else {
         printf("Too few argument expected.\n");
     }
+
+
    
 
     
 
-    // SETUP_SOCKET_SERVER();
+    SETUP_SOCKET_SERVER();
 
     return 0;
 }

@@ -12,7 +12,6 @@
 #define BUFLEN 512 // Max length of buffer
 int MY_PORT = 8888;  // The port on which to send data
 int OTHER_PORT = 8888;
-int otherPort;
 
 struct sockaddr_in si_me;
 struct sockaddr_in si_other;
@@ -30,7 +29,7 @@ struct Controller_s
 
 void die(char *s)
 {
-	perror(s);
+	// perror(s);
 	exit(1);
 }
 
@@ -39,7 +38,7 @@ void SETUP_OTHER_PORT(int OTHER, char MACHINE[]){
     // zero out the structure
     memset((char *)&si_other, 0, sizeof(si_other));
     si_other.sin_family = AF_INET;
-    si_other.sin_addr.s_addr = htonl()
+    // si_other.sin_addr.s_addr = inet_addr("asb9700u-g05.csil.sfu.ca");
     si_other.sin_port = htons(OTHER);
 
     if (inet_aton(SERVER, &si_other.sin_addr) == 0)
@@ -65,38 +64,27 @@ void SETUP_SOCKET_SERVER(){
 	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		die("socket");
 
-    SETUP_OTHER_PORT(OTHER_PORT);
+    SETUP_OTHER_PORT(OTHER_PORT, "");
     SETUP_MY_PORT(MY_PORT);
 
     // bind socket to port
-    // while (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
-	// {
-        // MY_PORT++;
-        // SETUP_MY_PORT(MY_PORT);
-		// die("bind");
-	// }
+    while (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
+	{
+        SETUP_MY_PORT(MY_PORT);
+		die("bind");
+	}
     
     printf("MY_PORT: %d \n", MY_PORT);
 
     // Create threads
-    pthread_create(&tid, NULL, await_Input, (void *)&tid);
+    pthread_create(&tid, NULL, send_Message, (void *)&tid);
 
     pthread_exit(NULL);
 }
 
-
-void *await_Input(void *vargp){
-    pthread_t tid;
-    printf("Type a port: ");
-    scanf("%d", &otherPort);
-    IS_READY = true;
-    pthread_create(&tid, NULL, send_Message, (void *)&tid);
-}
-
-
 void *send_Message(void *vargp){
 
-    SETUP_OTHER_PORT(otherPort);
+    SETUP_OTHER_PORT(8888, "");
 	// keep listening for data
 	while (1)
 	{
