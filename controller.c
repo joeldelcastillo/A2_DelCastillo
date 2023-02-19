@@ -35,10 +35,11 @@ void die(char *s)
 }
 
 
-void SETUP_OTHER_PORT(int OTHER){
+void SETUP_OTHER_PORT(int OTHER, char MACHINE[]){
     // zero out the structure
     memset((char *)&si_other, 0, sizeof(si_other));
     si_other.sin_family = AF_INET;
+    si_other.sin_addr.s_addr = htonl()
     si_other.sin_port = htons(OTHER);
 
     if (inet_aton(SERVER, &si_other.sin_addr) == 0)
@@ -68,12 +69,12 @@ void SETUP_SOCKET_SERVER(){
     SETUP_MY_PORT(MY_PORT);
 
     // bind socket to port
-    while (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
-	{
-        MY_PORT++;
-        SETUP_MY_PORT(MY_PORT);
+    // while (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
+	// {
+        // MY_PORT++;
+        // SETUP_MY_PORT(MY_PORT);
 		// die("bind");
-	}
+	// }
     
     printf("MY_PORT: %d \n", MY_PORT);
 
