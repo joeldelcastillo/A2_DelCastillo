@@ -146,4 +146,6 @@ void List_free(List *pList, FREE_FN pItemFreeFn);
 typedef bool (*COMPARATOR_FN)(void *pItem, void *pComparisonArg);
 void *List_search(List *pList, COMPARATOR_FN pComparator, void *pComparisonArg);
 
+void print_List(List *pList);
+
 #endif
