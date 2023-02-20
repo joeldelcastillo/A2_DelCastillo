@@ -10,8 +10,9 @@
 
 #define SERVER "127.0.0.1"
 #define BUFLEN 512 // Max length of buffer
-int MY_PORT = 8888;  // The port on which to send data
-int OTHER_PORT = 8888;
+int MY_PORT;  // The port on which to send data
+int OTHER_PORT;
+char OTHER_CPU[20];
 int otherPort;
 
 struct sockaddr_in si_me;
@@ -34,46 +35,81 @@ void die(char *s)
 	exit(1);
 }
 
+int hostname_to_ip(char * hostname , char* ip)
+{
+	struct hostent *he;
+	struct in_addr **addr_list;
+	int i;
+		
+	if ( (he = gethostbyname( hostname ) ) == NULL) 
+	{
+		// get the host info
+		herror("gethostbyname");
+		return 1;
+	}
 
-void SETUP_OTHER_PORT(int OTHER){
+	addr_list = (struct in_addr **) he->h_addr_list;
+	
+	for(i = 0; addr_list[i] != NULL; i++) 
+	{
+		//Return the first one;
+		strcpy(ip , inet_ntoa(*addr_list[i]) );
+		return 0;
+	}
+	
+	return 1;
+}
+
+
+
+void SETUP_OTHER_PORT(int port, char *cpu){
+    OTHER_PORT = port;
+    printf("CPU: %s \n" , cpu);
+    char host[] = "asb9700u-g05.csil.sfu.ca";
+    char ip[100];
+    hostname_to_ip(host , ip);
+	printf("%s resolved to %s" , host , ip);
+	
+	printf("\n");
+
     // zero out the structure
     memset((char *)&si_other, 0, sizeof(si_other));
     si_other.sin_family = AF_INET;
-    si_other.sin_port = htons(OTHER);
+    si_other.sin_addr.s_addr = inet_addr(ip);
+    si_other.sin_port = htons(port);
 
-    if (inet_aton(SERVER, &si_other.sin_addr) == 0)
-    {
-        fprintf(stderr, "inet_aton() failed\n");
-        // exit(1);
-    }
+    // if (inet_aton(SERVER, &si_other.sin_addr) == 0)
+    // {
+    //     fprintf(stderr, "inet_aton() failed\n");
+    //     // exit(1);
+    // }
 }
 
 
 void SETUP_MY_PORT(int port){
+    MY_PORT = port;
 	memset((char *)&si_me, 0, sizeof(si_me));
 	si_me.sin_family = AF_INET;
 	si_me.sin_port = htons(port);
+    // Adress to accept any incoming messages
 	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 }
 
 
-void SETUP_SOCKET_SERVER(){
+void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU ){
 
     pthread_t tid;
     // create a UDP socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		die("socket");
 
-    SETUP_OTHER_PORT(OTHER_PORT);
-    SETUP_MY_PORT(MY_PORT);
+    SETUP_OTHER_PORT(OTHERPORT, OTHERCPU);
+    SETUP_MY_PORT(MYPORT);
 
     // bind socket to port
-    while (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
-	{
-        MY_PORT++;
-        SETUP_MY_PORT(MY_PORT);
-		// die("bind");
-	}
+    if(bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1){
+       die("bind"); 
+    }
     
     printf("MY_PORT: %d \n", MY_PORT);
 
@@ -86,16 +122,12 @@ void SETUP_SOCKET_SERVER(){
 
 void *await_Input(void *vargp){
     pthread_t tid;
-    printf("Type a port: ");
-    scanf("%d", &otherPort);
-    IS_READY = true;
     pthread_create(&tid, NULL, send_Message, (void *)&tid);
 }
 
 
 void *send_Message(void *vargp){
 
-    SETUP_OTHER_PORT(otherPort);
 	// keep listening for data
 	while (1)
 	{
@@ -126,10 +158,6 @@ void *send_Message(void *vargp){
 	}
     close(s);
 }
-
-
-
-
 
 
 

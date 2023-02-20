@@ -5,6 +5,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h> //For errno - the error number
+#include <netdb.h>	//hostent
 
 #define BUFLEN 512 // Max length of buffer
 #define PORT 8888  // The port on which to listen for incoming data
