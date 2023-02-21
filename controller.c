@@ -90,7 +90,10 @@ void SETUP_MY_PORT(int port)
 void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 {
 
-    pthread_t tid;
+    pthread_t tid1;
+    pthread_t tid2;
+    pthread_t tid3;
+    pthread_t tid4;
     // create a UDP socket
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
         die("socket");
@@ -106,49 +109,80 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 
     printf("MY_PORT: %d \n", MY_PORT);
 
+    // char *message = malloc(sizeof(char[256]));
+    // message = "holabola";
+    // List_append(&buffer.messages_send, message);
     // Create threads
     // pthread_create(&tid, NULL, send_Message, (void *)&tid);
-    pthread_create(&tid, NULL, await_Input, (void *)&tid);
+    pthread_create(&tid1, NULL, await_Input, (void *)&tid1);
+    pthread_create(&tid1, NULL, send_Message, (void *)&tid1);
+    // pthread_create(&tid3, NULL, receive_Message, (void *)&tid3);
+    // pthread_create(&tid4, NULL, print_Output, (void *)&tid4);
 
     pthread_exit(NULL);
 }
 
 void *await_Input(void *vargp)
 {
-    while (STOP = !false)
+
+    while (STOP == false)
     {
-        char *message = malloc(sizeof(char[254]));
-        printf("Enter message : ");
-        scanf("%s253[\n]", message);
-        // message = pointer;
-        // printf("%s \n", message);
-        // fflush(stdout);
-        if (message == "!")
-            STOP = true;
-        List_append(&buffer.messages_send, message);
-        print_List(&buffer.messages_send);
+        while (buffer.messages_send.size < 1)
+        {
+            char *message = malloc(sizeof(char[256]));
+            printf("Enter message : ");
+            fgets(message, 256, stdin);
+            // scanf("%s253[\n]", message);
+            // message = pointer;
+
+            fflush(stdout);
+
+            if (strcmp("!\n", message) == 0)
+                STOP = true;
+
+            List_append(&buffer.messages_send, message);
+            // print_List(&buffer.messages_send);
+        }
     }
 }
 
 void *send_Message(void *vargp)
 {
+    // printf("%d \n", buffer.messages_send.size);
+    // print_List(&buffer.messages_send);
+    // void *message = List_pop(&buffer.messages_send);
+    // printf("%s \n", (char *) message);
+    // print_List(&buffer.messages_send);
+    // printf("%d \n", buffer.messages_send.size);
 
-    // keep listening for data
-    while (1)
+    while (buffer.messages_send.size > 0)
     {
-        char message[1024];
-        printf("Enter message : ");
-        scanf("%1023[\n]", message);
-        fflush(stdout);
+        printf("BUF size: %d \n", buffer.messages_send.size);
+        // printf("%d \n", buffer.messages_send.size);
+        char *message = List_pop(&buffer.messages_send);
+        printf("%s \n", message);
 
-        // send the message
-        if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other, slen) == -1)
-        {
-            die("sendto()");
-        }
+        // if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other, slen) == -1)
+        // {
+        //     die("sendto()");
+        // }
         // receive a reply and print it
         // clear the buffer by filling null, it might have previously received data
-        memset(buf, '\0', BUFLEN);
+        // memset(message, '\0', BUFLEN);
+    }
+
+    // close(s);
+}
+
+void *receive_Message(void *vargp)
+{
+    while (true)
+    {
+        char *message = malloc(sizeof(char[256]));
+
+        // receive a reply and print it
+        // clear the buffer by filling null, it might have previously received data
+        memset(message, '\0', BUFLEN);
 
         // try to receive some data, this is a blocking call
         if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other, &slen)) == -1)
@@ -156,7 +190,8 @@ void *send_Message(void *vargp)
             die("recvfrom()");
         }
 
-        puts(buf);
+        puts(message);
+        List_append(&buffer.messages_receive, message);
 
         // print details of the client/peer and the data received
         printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
@@ -164,6 +199,50 @@ void *send_Message(void *vargp)
     }
     close(s);
 }
+
+void *print_Output(void *vargp)
+{
+    while (buffer.messages_receive.size = !0)
+    {
+        char *message = List_pop(&buffer.messages_receive);
+        printf("%s \n", message);
+    }
+}
+
+// void *send(void *vargp)
+// {
+
+//     // keep listening for data
+//     while (1)
+//     {
+//         char message[1024];
+//         printf("Enter message : ");
+//         scanf("%1023[\n]", message);
+//         fflush(stdout);
+
+//         // send the message
+//         if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other, slen) == -1)
+//         {
+//             die("sendto()");
+//         }
+//         // receive a reply and print it
+//         // clear the buffer by filling null, it might have previously received data
+//         memset(buf, '\0', BUFLEN);
+
+//         // try to receive some data, this is a blocking call
+//         if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other, &slen)) == -1)
+//         {
+//             die("recvfrom()");
+//         }
+
+//         puts(buf);
+
+//         // print details of the client/peer and the data received
+//         printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+//         printf("Data: %s\n", buf);
+//     }
+//     close(s);
+// }
 
 // Message receive_Message(char message[]){
 

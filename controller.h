@@ -35,6 +35,11 @@ void *print_Characters(void *vargp);
 // Sends data to the remote UNIX process over the network using UDP
 void *send_Message(void *vargp);
 
+void *receive_Message(void *vargp);
+
+void *print_Output(void *vargp);
+
+
 //
 void SETUP_SOCKET_SERVER();
 
@@ -45,7 +50,7 @@ void listen_Socket();
 void die(char *s);
 
 // decode message received
-Message receive_Message(char message[]);
+// Message receive_Message(char message[]);
 
 
 

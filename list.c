@@ -117,9 +117,9 @@ void *Node_DeAllocate(Node *pNode)
     poolHead_Nodes = pNode->poolID;
     pNode->next = NULL;
     pNode->prev = NULL;
-    pNode->element = NULL;
+    // pNode->element = NULL;
     numUsedNodes--;
-    return pNode;
+    return pNode->element;
 }
 
 // Deallocate a List to the Pool and return its pointer value
@@ -445,6 +445,12 @@ void *List_remove(List *pList)
 void *List_trim(List *pList)
 {
     List_last(pList);
+    return List_remove(pList);
+}
+
+void *List_pop(List *pList)
+{
+    List_first(pList);
     return List_remove(pList);
 }
 
