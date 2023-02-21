@@ -6,6 +6,7 @@
 #include "controller.h"
 #include <string.h>
 #include "list.h"
+#include <semaphore.h>
 
 #define SERVER "127.0.0.1"
 #define BUFLEN 512 // Max length of buffer
@@ -20,6 +21,9 @@ char buf[BUFLEN];
 char message[BUFLEN];
 bool STOP = false;
 
+sem_t empty, full;
+pthread_mutex_t mutex;
+
 typedef struct Controller_s Controller;
 struct Controller_s
 {
@@ -33,6 +37,13 @@ void die(char *s)
 {
     perror(s);
     exit(1);
+}
+
+void init_semaphores()
+{
+    pthread_mutex_init(&mutex, NULL);
+    sem_init(&empty, 0, 1);
+    sem_init(&full, 0, 0);
 }
 
 int hostname_to_ip(char *hostname, char *ip)
@@ -89,6 +100,7 @@ void SETUP_MY_PORT(int port)
 
 void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 {
+    init_semaphores();
 
     pthread_t tid1;
     pthread_t tid2;
@@ -115,11 +127,16 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
     // Create threads
     // pthread_create(&tid, NULL, send_Message, (void *)&tid);
     pthread_create(&tid1, NULL, await_Input, (void *)&tid1);
-    pthread_create(&tid1, NULL, send_Message, (void *)&tid1);
+    pthread_create(&tid2, NULL, send_Message, (void *)&tid2);
+
+    pthread_join(tid1, NULL);
+    pthread_join(tid2, NULL);
     // pthread_create(&tid3, NULL, receive_Message, (void *)&tid3);
     // pthread_create(&tid4, NULL, print_Output, (void *)&tid4);
 
-    pthread_exit(NULL);
+    pthread_mutex_destroy(&mutex);
+    sem_destroy(&empty);
+    sem_destroy(&full);
 }
 
 void *await_Input(void *vargp)
@@ -127,22 +144,27 @@ void *await_Input(void *vargp)
 
     while (STOP == false)
     {
-        while (buffer.messages_send.size < 1)
+        char *message = malloc(sizeof(char[256]));
+
+        sem_wait(&empty);
+        pthread_mutex_lock(&mutex);
         {
-            char *message = malloc(sizeof(char[256]));
+
             printf("Enter message : ");
             fgets(message, 256, stdin);
             // scanf("%s253[\n]", message);
             // message = pointer;
 
-            fflush(stdout);
+            // fflush(stdout);
 
             if (strcmp("!\n", message) == 0)
                 STOP = true;
-
             List_append(&buffer.messages_send, message);
             // print_List(&buffer.messages_send);
         }
+
+        pthread_mutex_unlock(&mutex);
+        sem_post(&full);
     }
 }
 
@@ -155,12 +177,20 @@ void *send_Message(void *vargp)
     // print_List(&buffer.messages_send);
     // printf("%d \n", buffer.messages_send.size);
 
-    while (buffer.messages_send.size > 0)
+    while (STOP == false)
     {
-        printf("BUF size: %d \n", buffer.messages_send.size);
+        // printf("BUF size: %d \n", buffer.messages_send.size);
         // printf("%d \n", buffer.messages_send.size);
-        char *message = List_pop(&buffer.messages_send);
-        printf("%s \n", message);
+
+        sem_wait(&full);
+        pthread_mutex_lock(&mutex);
+        {
+            char *message = List_pop(&buffer.messages_send);
+            printf("%s \n", message);
+        }
+
+        pthread_mutex_unlock(&mutex);
+        sem_post(&empty);
 
         // if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other, slen) == -1)
         // {
