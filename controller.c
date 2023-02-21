@@ -128,10 +128,12 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
     // pthread_create(&tid, NULL, send_Message, (void *)&tid);
     pthread_create(&tid1, NULL, await_Input, (void *)&tid1);
     pthread_create(&tid2, NULL, send_Message, (void *)&tid2);
+    pthread_create(&tid3, NULL, receive_Message, (void *)&tid3);
 
     pthread_join(tid1, NULL);
     pthread_join(tid2, NULL);
-    // pthread_create(&tid3, NULL, receive_Message, (void *)&tid3);
+    pthread_join(tid3, NULL);
+
     // pthread_create(&tid4, NULL, print_Output, (void *)&tid4);
 
     pthread_mutex_destroy(&mutex);
@@ -145,16 +147,13 @@ void *await_Input(void *vargp)
     while (STOP == false)
     {
         char *message = malloc(sizeof(char[256]));
+        // printf("pointer: %p ",message);
 
         sem_wait(&empty);
         pthread_mutex_lock(&mutex);
         {
-
             printf("Enter message : ");
             fgets(message, 256, stdin);
-            // scanf("%s253[\n]", message);
-            // message = pointer;
-
             // fflush(stdout);
 
             if (strcmp("!\n", message) == 0)
@@ -181,24 +180,27 @@ void *send_Message(void *vargp)
     {
         // printf("BUF size: %d \n", buffer.messages_send.size);
         // printf("%d \n", buffer.messages_send.size);
+        char *message;
 
         sem_wait(&full);
         pthread_mutex_lock(&mutex);
         {
-            char *message = List_pop(&buffer.messages_send);
+            message = List_pop(&buffer.messages_send);
             printf("%s \n", message);
         }
 
         pthread_mutex_unlock(&mutex);
         sem_post(&empty);
 
-        // if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other, slen) == -1)
-        // {
-        //     die("sendto()");
-        // }
+        if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other, slen) == -1)
+        {
+            printf("died");
+            die("sendto()");
+        }
+
         // receive a reply and print it
         // clear the buffer by filling null, it might have previously received data
-        // memset(message, '\0', BUFLEN);
+        memset(message, '\0', BUFLEN);
     }
 
     // close(s);
@@ -221,7 +223,7 @@ void *receive_Message(void *vargp)
         }
 
         puts(message);
-        List_append(&buffer.messages_receive, message);
+        // List_append(&buffer.messages_receive, message);
 
         // print details of the client/peer and the data received
         printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
