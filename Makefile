@@ -1,5 +1,5 @@
 build:
-	gcc -pthread -o s-talk main.c list.c controller.c
+	gcc -pthread -o s-talk list.c main.c controller.c
 
 test:
 	gcc -pthread -D test test.c

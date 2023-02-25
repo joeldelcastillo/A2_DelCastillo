@@ -17,8 +17,7 @@ char OTHER_CPU[20];
 struct sockaddr_in si_me;
 struct sockaddr_in si_other;
 int s, i, slen = sizeof(si_other), recv_len;
-char buf[BUFLEN];
-char message[BUFLEN];
+
 bool STOP = false;
 
 sem_t empty, full;
@@ -75,7 +74,7 @@ void SETUP_OTHER_PORT(int port, char *cpu)
 {
     OTHER_PORT = port;
     printf("CPU: %s \n", cpu);
-    char host[] = "asb9700u-g05.csil.sfu.ca";
+    char host[] = "asb9700u-g01.csil.sfu.ca";
     char ip[100];
     hostname_to_ip(host, ip);
     printf("%s resolved to %s", host, ip);
@@ -201,6 +200,7 @@ void *send_Message(void *vargp)
         // receive a reply and print it
         // clear the buffer by filling null, it might have previously received data
         memset(message, '\0', BUFLEN);
+        free(message);
     }
 
     // close(s);
@@ -217,7 +217,7 @@ void *receive_Message(void *vargp)
         memset(message, '\0', BUFLEN);
 
         // try to receive some data, this is a blocking call
-        if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other, &slen)) == -1)
+        if ((recv_len = recvfrom(s, message, BUFLEN, 0, (struct sockaddr *)&si_other, &slen)) == -1)
         {
             die("recvfrom()");
         }
@@ -227,7 +227,9 @@ void *receive_Message(void *vargp)
 
         // print details of the client/peer and the data received
         printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-        printf("Data: %s\n", buf);
+        printf("Data: %s\n", message);
+
+        free(message);
     }
     close(s);
 }
