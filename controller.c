@@ -17,6 +17,7 @@ char OTHER_CPU[20];
 struct sockaddr_in si_me;
 struct sockaddr_in si_other;
 int s, i, slen = sizeof(si_other), recv_len;
+static pthread_t tid1, tid2, tid3, tid4;
 
 bool STOP = false;
 
@@ -101,10 +102,7 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 {
     init_semaphores();
 
-    pthread_t tid1;
-    pthread_t tid2;
-    pthread_t tid3;
-    pthread_t tid4;
+
     // create a UDP socket
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
         die("socket");
@@ -120,9 +118,9 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 
     printf("MY_PORT: %d \n", MY_PORT);
 
-    pthread_create(&tid1, NULL, await_Input, (void *)&tid1);
-    pthread_create(&tid2, NULL, send_Message, (void *)&tid2);
-    pthread_create(&tid3, NULL, receive_Message, (void *)&tid3);
+    pthread_create(&tid1, NULL, await_Input_Thread, (void *)&tid1);
+    pthread_create(&tid2, NULL, send_Message_Thread, (void *)&tid2);
+    pthread_create(&tid3, NULL, receive_Message_Thread, (void *)&tid3);
 
     pthread_join(tid1, NULL);
     pthread_join(tid2, NULL);
@@ -133,7 +131,7 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
     sem_destroy(&full);
 }
 
-void *await_Input(void *vargp)
+void *await_Input_Thread(void *vargp)
 {
 
     while (STOP == false)
@@ -158,7 +156,7 @@ void *await_Input(void *vargp)
     }
 }
 
-void *send_Message(void *vargp)
+void *send_Message_Thread(void *vargp)
 {
     // printf("%d \n", buffer.messages_send.size);
     // print_List(&buffer.messages_send);
@@ -197,7 +195,7 @@ void *send_Message(void *vargp)
     // close(s);
 }
 
-void *receive_Message(void *vargp)
+void *receive_Message_Thread(void *vargp)
 {
     while (true)
     {
@@ -225,7 +223,7 @@ void *receive_Message(void *vargp)
     close(s);
 }
 
-void *print_Output(void *vargp)
+void *print_Output_Thread(void *vargp)
 {
     while (buffer.messages_receive.size = !0)
     {
@@ -234,6 +232,9 @@ void *print_Output(void *vargp)
     }
 }
 
+void server_shutDown(){
+    
+}
 // void *send(void *vargp)
 // {
 
@@ -269,7 +270,7 @@ void *print_Output(void *vargp)
 //     close(s);
 // }
 
-// Message receive_Message(char message[]){
+// Message receive_Message_Thread(char message[]){
 
 // }
 
@@ -277,6 +278,6 @@ void *print_Output(void *vargp)
 // Message decode_Message(char[] message);
 
 // Send Message
-// int send_Message(Message message);
+// int send_Message_Thread(Message message);
 
 // bool keyboard[256] = {0};
