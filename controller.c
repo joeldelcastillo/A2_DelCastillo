@@ -120,11 +120,6 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 
     printf("MY_PORT: %d \n", MY_PORT);
 
-    // char *message = malloc(sizeof(char[256]));
-    // message = "holabola";
-    // List_append(&buffer.messages_send, message);
-    // Create threads
-    // pthread_create(&tid, NULL, send_Message, (void *)&tid);
     pthread_create(&tid1, NULL, await_Input, (void *)&tid1);
     pthread_create(&tid2, NULL, send_Message, (void *)&tid2);
     pthread_create(&tid3, NULL, receive_Message, (void *)&tid3);
@@ -132,8 +127,6 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
     pthread_join(tid1, NULL);
     pthread_join(tid2, NULL);
     pthread_join(tid3, NULL);
-
-    // pthread_create(&tid4, NULL, print_Output, (void *)&tid4);
 
     pthread_mutex_destroy(&mutex);
     sem_destroy(&empty);
@@ -151,7 +144,6 @@ void *await_Input(void *vargp)
         sem_wait(&empty);
         pthread_mutex_lock(&mutex);
         {
-            printf("Enter message : ");
             fgets(message, 256, stdin);
             // fflush(stdout);
 
@@ -185,7 +177,6 @@ void *send_Message(void *vargp)
         pthread_mutex_lock(&mutex);
         {
             message = List_pop(&buffer.messages_send);
-            printf("%s \n", message);
         }
 
         pthread_mutex_unlock(&mutex);
@@ -222,12 +213,12 @@ void *receive_Message(void *vargp)
             die("recvfrom()");
         }
 
-        puts(message);
+        // puts(message);
         // List_append(&buffer.messages_receive, message);
 
         // print details of the client/peer and the data received
-        printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-        printf("Data: %s\n", message);
+        // printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+        printf("------------- %s\n", message);
 
         free(message);
     }
