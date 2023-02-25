@@ -20,10 +20,10 @@ int s, i, slen = sizeof(si_other), recv_len;
 
 static pthread_t tid1, tid2, tid3, tid4;
 
-static pthread_cond_t s_syncOkToRead_CondVar = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t s_syncOkToSendUDP_CondVar = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t s_syncOkToReceiveUDP_CondVar = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t s_syncOkToPrint_CondVar = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t s_buffAvailtoSend_CondVar = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t s_itemAvailtoSend_CondVar = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t s_buffAvailtoReceive_CondVar = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t s_itemAvailtoReceive_CondVar = PTHREAD_COND_INITIALIZER;
 
 static pthread_mutex_t s_syncOkToSend_Mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t s_syncOkToReceive_Mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -115,18 +115,21 @@ void *await_Input_Thread(void *vargp)
         // printf("pointer: %p ",message);
         pthread_mutex_lock(&s_syncOkToSend_Mutex);
         {
+            printf("INPUT tiene el lock\n");
+            printf("size: %d \n", buffer.messages_send.size);
             while (buffer.messages_send.size == 1)
             {
-                pthread_cond_wait(&s_syncOkToRead_CondVar, &s_syncOkToSend_Mutex);
+                pthread_cond_wait(&s_buffAvailtoSend_CondVar, &s_syncOkToSend_Mutex);
             }
-
+            printf("-------------------------------------- Read\n");
             fgets(message, 256, stdin);
             // fflush(stdout);
 
+            List_append(&buffer.messages_send, message);
+            pthread_cond_signal(&s_itemAvailtoSend_CondVar);
+
             if (strcmp("!\n", message) == 0)
                 STOP = true;
-            List_append(&buffer.messages_send, message);
-            pthread_cond_signal(&s_syncOkToSendUDP_CondVar);
         }
 
         pthread_mutex_unlock(&s_syncOkToSend_Mutex);
@@ -150,13 +153,15 @@ void *send_Message_Thread(void *vargp)
 
         pthread_mutex_lock(&s_syncOkToSend_Mutex);
         {
+            printf("SEND UDP tiene el lock\n");
+            printf("size: %d \n", buffer.messages_send.size);
             while (buffer.messages_send.size == 0)
             {
-                pthread_cond_wait(&s_syncOkToSendUDP_CondVar, &s_syncOkToSend_Mutex);
+                pthread_cond_wait(&s_itemAvailtoSend_CondVar, &s_syncOkToSend_Mutex);
             }
-
+            printf("-------------------------------------- UDP\n");
             message = List_pop(&buffer.messages_send);
-            pthread_cond_signal(&s_syncOkToRead_CondVar);
+            pthread_cond_signal(&s_buffAvailtoSend_CondVar);
         }
 
         pthread_mutex_unlock(&s_syncOkToSend_Mutex);
@@ -170,7 +175,7 @@ void *send_Message_Thread(void *vargp)
         // receive a reply and print it
         // clear the buffer by filling null, it might have previously received data
         memset(message, '\0', BUFLEN);
-        free(message);
+        // free(message);
     }
 
     // close(s);
@@ -242,10 +247,10 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
     pthread_mutex_destroy(&s_syncOkToSend_Mutex);
     pthread_mutex_destroy(&s_syncOkToReceive_Mutex);
 
-    pthread_cond_destroy(&s_syncOkToRead_CondVar);
-    pthread_cond_destroy(&s_syncOkToSendUDP_CondVar);
-    pthread_cond_destroy(&s_syncOkToReceiveUDP_CondVar);
-    pthread_cond_destroy(&s_syncOkToPrint_CondVar);
+    pthread_cond_destroy(&s_buffAvailtoReceive_CondVar);
+    pthread_cond_destroy(&s_buffAvailtoSend_CondVar);
+    pthread_cond_destroy(&s_itemAvailtoReceive_CondVar);
+    pthread_cond_destroy(&s_itemAvailtoSend_CondVar);
 }
 
 void server_shutDown()
