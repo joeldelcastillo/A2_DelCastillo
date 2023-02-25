@@ -17,12 +17,20 @@ char OTHER_CPU[20];
 struct sockaddr_in si_me;
 struct sockaddr_in si_other;
 int s, i, slen = sizeof(si_other), recv_len;
+
 static pthread_t tid1, tid2, tid3, tid4;
+
+static pthread_cond_t s_syncOkToRead_CondVar = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t s_syncOkToSendUDP_CondVar = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t s_syncOkToReceiveUDP_CondVar = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t s_syncOkToPrint_CondVar = PTHREAD_COND_INITIALIZER;
+
+static pthread_mutex_t s_syncOkToSend_Mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t s_syncOkToReceive_Mutex = PTHREAD_MUTEX_INITIALIZER;
 
 bool STOP = false;
 
 sem_t empty, full;
-pthread_mutex_t mutex;
 
 typedef struct Controller_s Controller;
 struct Controller_s
@@ -39,12 +47,12 @@ void die(char *s)
     exit(1);
 }
 
-void init_semaphores()
-{
-    pthread_mutex_init(&mutex, NULL);
-    sem_init(&empty, 0, 1);
-    sem_init(&full, 0, 0);
-}
+// void init_semaphores()
+// {
+//     pthread_mutex_init(&mutex, NULL);
+//     sem_init(&empty, 0, 1);
+//     sem_init(&full, 0, 0);
+// }
 
 int hostname_to_ip(char *hostname, char *ip)
 {
@@ -98,39 +106,6 @@ void SETUP_MY_PORT(int port)
     si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 }
 
-void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
-{
-    init_semaphores();
-
-
-    // create a UDP socket
-    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-        die("socket");
-
-    SETUP_OTHER_PORT(OTHERPORT, OTHERCPU);
-    SETUP_MY_PORT(MYPORT);
-
-    // bind socket to port
-    if (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
-    {
-        die("bind");
-    }
-
-    printf("MY_PORT: %d \n", MY_PORT);
-
-    pthread_create(&tid1, NULL, await_Input_Thread, (void *)&tid1);
-    pthread_create(&tid2, NULL, send_Message_Thread, (void *)&tid2);
-    pthread_create(&tid3, NULL, receive_Message_Thread, (void *)&tid3);
-
-    pthread_join(tid1, NULL);
-    pthread_join(tid2, NULL);
-    pthread_join(tid3, NULL);
-
-    pthread_mutex_destroy(&mutex);
-    sem_destroy(&empty);
-    sem_destroy(&full);
-}
-
 void *await_Input_Thread(void *vargp)
 {
 
@@ -138,21 +113,23 @@ void *await_Input_Thread(void *vargp)
     {
         char *message = malloc(sizeof(char[256]));
         // printf("pointer: %p ",message);
-
-        sem_wait(&empty);
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&s_syncOkToSend_Mutex);
         {
+            while (buffer.messages_send.size == 1)
+            {
+                pthread_cond_wait(&s_syncOkToRead_CondVar, &s_syncOkToSend_Mutex);
+            }
+
             fgets(message, 256, stdin);
             // fflush(stdout);
 
             if (strcmp("!\n", message) == 0)
                 STOP = true;
             List_append(&buffer.messages_send, message);
-            // print_List(&buffer.messages_send);
+            pthread_cond_signal(&s_syncOkToSendUDP_CondVar);
         }
 
-        pthread_mutex_unlock(&mutex);
-        sem_post(&full);
+        pthread_mutex_unlock(&s_syncOkToSend_Mutex);
     }
 }
 
@@ -171,14 +148,18 @@ void *send_Message_Thread(void *vargp)
         // printf("%d \n", buffer.messages_send.size);
         char *message;
 
-        sem_wait(&full);
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&s_syncOkToSend_Mutex);
         {
+            while (buffer.messages_send.size == 0)
+            {
+                pthread_cond_wait(&s_syncOkToSendUDP_CondVar, &s_syncOkToSend_Mutex);
+            }
+
             message = List_pop(&buffer.messages_send);
+            pthread_cond_signal(&s_syncOkToRead_CondVar);
         }
 
-        pthread_mutex_unlock(&mutex);
-        sem_post(&empty);
+        pthread_mutex_unlock(&s_syncOkToSend_Mutex);
 
         if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other, slen) == -1)
         {
@@ -232,8 +213,43 @@ void *print_Output_Thread(void *vargp)
     }
 }
 
-void server_shutDown(){
-    
+void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
+{
+
+    // create a UDP socket
+    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+        die("socket");
+
+    SETUP_OTHER_PORT(OTHERPORT, OTHERCPU);
+    SETUP_MY_PORT(MYPORT);
+
+    // bind socket to port
+    if (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1)
+    {
+        die("bind");
+    }
+
+    printf("MY_PORT: %d \n", MY_PORT);
+
+    pthread_create(&tid1, NULL, await_Input_Thread, (void *)&tid1);
+    pthread_create(&tid2, NULL, send_Message_Thread, (void *)&tid2);
+    pthread_create(&tid3, NULL, receive_Message_Thread, (void *)&tid3);
+
+    pthread_join(tid1, NULL);
+    pthread_join(tid2, NULL);
+    pthread_join(tid3, NULL);
+
+    pthread_mutex_destroy(&s_syncOkToSend_Mutex);
+    pthread_mutex_destroy(&s_syncOkToReceive_Mutex);
+
+    pthread_cond_destroy(&s_syncOkToRead_CondVar);
+    pthread_cond_destroy(&s_syncOkToSendUDP_CondVar);
+    pthread_cond_destroy(&s_syncOkToReceiveUDP_CondVar);
+    pthread_cond_destroy(&s_syncOkToPrint_CondVar);
+}
+
+void server_shutDown()
+{
 }
 // void *send(void *vargp)
 // {

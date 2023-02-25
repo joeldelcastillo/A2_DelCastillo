@@ -7,6 +7,7 @@
         "vector": "c",
         "iterator": "c",
         "string_view": "c",
-        "tuple": "c"
+        "tuple": "c",
+        "condition_variable": "c"
     }
 }
