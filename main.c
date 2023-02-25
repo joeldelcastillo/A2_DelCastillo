@@ -24,9 +24,5 @@ int main(int argc, char *argv[])
     else
         printf("3 arguments were expected, %d were given\n", argc -1);
 
-
-
-    
-
     return 0;
 }
