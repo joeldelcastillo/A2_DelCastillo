@@ -44,10 +44,12 @@ void die(char *s)
     exit(1);
 }
 
-void List_print(List *pList){
+void List_print(List *pList)
+{
     printf("{");
     List_first(pList);
-    while (List_curr(pList) != NULL){
+    while (List_curr(pList) != NULL)
+    {
         char *value = List_curr(pList);
         printf("%s ", value);
         List_next(pList);
@@ -159,7 +161,7 @@ void *send_Message_Thread(void *vargp)
             }
             // printf("-------------------------------------- UDP\n");
             message = List_trim(&buffer.messages_send);
-            List_print(&buffer.messages_send);
+            // List_print(&buffer.messages_send);
             pthread_cond_signal(&s_buffAvailtoSend_CondVar);
         }
         pthread_mutex_unlock(&s_syncOkToSend_Mutex);
@@ -181,7 +183,7 @@ void *send_Message_Thread(void *vargp)
 
 void *receive_Message_Thread(void *vargp)
 {
-    
+
     while (STOP == false)
     {
         char *message = malloc(sizeof(char[256]));
@@ -197,18 +199,17 @@ void *receive_Message_Thread(void *vargp)
 
         pthread_mutex_lock(&s_syncOkToReceive_Mutex);
         {
-            printf("RECEIVE tiene el lock\n");
+            // printf("RECEIVE tiene el lock\n");
             // printf("size: %d \n", buffer.messages_receive.size);
             while (buffer.messages_receive.count == LIST_MAX_NUM_NODES)
             {
                 pthread_cond_wait(&s_buffAvailtoReceive_CondVar, &s_syncOkToReceive_Mutex);
             }
-            printf("-------------------------------------- Append\n");
+            // printf("-------------------------------------- Append\n");
             List_append(&buffer.messages_receive, message);
-            List_print(&buffer.messages_receive);
+            // List_print(&buffer.messages_receive);
             // printf("size: %d \n", buffer.messages_receive.size);
             pthread_cond_signal(&s_itemAvailtoReceive_CondVar);
-            
         }
         pthread_mutex_unlock(&s_syncOkToReceive_Mutex);
         // puts(message);
@@ -216,7 +217,6 @@ void *receive_Message_Thread(void *vargp)
 
         // print details of the client/peer and the data received
         // printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-        
 
         // free(message);
         // printf("------------- %s\n", message);
@@ -229,26 +229,23 @@ void *print_Output_Thread(void *vargp)
 
     while (STOP == false)
     {
-        
+        char *message;
         pthread_mutex_lock(&s_syncOkToReceive_Mutex);
         {
-            printf("SEND OUTPUT tiene el lock\n");
-            
+            // printf("SEND OUTPUT tiene el lock\n");
+
             while (buffer.messages_receive.count == 0)
             {
                 pthread_cond_wait(&s_itemAvailtoReceive_CondVar, &s_syncOkToReceive_Mutex);
             }
-            printf("-------------------------------------- PRINT\n");
+            // printf("-------------------------------------- PRINT\n");
             // List_print(&buffer.messages_receive);
             List_first(&buffer.messages_receive);
-            char *message = List_remove(&buffer.messages_receive);
-            // List_remove(&buffer.messages_receive);
-            
-            // printf("size: %d \n", buffer.messages_receive.count);
-            printf("%s\n", message);
+            message = List_remove(&buffer.messages_receive);
             pthread_cond_signal(&s_buffAvailtoReceive_CondVar);
         }
         pthread_mutex_unlock(&s_syncOkToReceive_Mutex);
+        printf("%s", message);
         // printf("%s\n", message);
         // clear the buffer by filling null, it might have previously received data
         // memset(message, '\0', BUFLEN);
