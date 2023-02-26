@@ -117,7 +117,8 @@ void *Node_DeAllocate(Node *pNode)
     poolHead_Nodes = pNode->poolID;
     pNode->next = NULL;
     pNode->prev = NULL;
-    // pNode->element = NULL;
+    // pNode->element = NULL;]
+    printf("dealoc %s\n", (char *) pNode->element);
     numUsedNodes--;
     return pNode->element;
 }

@@ -195,7 +195,7 @@ void *receive_Message_Thread(void *vargp)
             }
             printf("-------------------------------------- Append\n");
             List_append(&buffer.messages_receive, message);
-            print_List(&buffer.messages_receive);
+            // print_List(&buffer.messages_receive);
             // printf("size: %d \n", buffer.messages_receive.size);
             pthread_cond_signal(&s_itemAvailtoReceive_CondVar);
             
@@ -218,27 +218,27 @@ void *print_Output_Thread(void *vargp)
 
     while (STOP == false)
     {
-        char *message;
-
+        
         pthread_mutex_lock(&s_syncOkToReceive_Mutex);
         {
             printf("SEND OUTPUT tiene el lock\n");
-            // printf("size: %d \n", buffer.messages_receive.size);
+            
             while (buffer.messages_receive.size == 0)
             {
                 pthread_cond_wait(&s_itemAvailtoReceive_CondVar, &s_syncOkToReceive_Mutex);
             }
             printf("-------------------------------------- PRINT\n");
-            message = List_pop(&buffer.messages_receive);
+            char *message = List_trim(&buffer.messages_receive);
+            print_List(&buffer.messages_receive);
+            printf("size: %d \n", buffer.messages_receive.size);
+            printf("%s\n", message);
             pthread_cond_signal(&s_buffAvailtoReceive_CondVar);
         }
         pthread_mutex_unlock(&s_syncOkToReceive_Mutex);
-
-        // receive a reply and print it
+        // printf("%s\n", message);
         // clear the buffer by filling null, it might have previously received data
-        printf("%s\n", message);
-        memset(message, '\0', BUFLEN);
-        free(message);
+        // memset(message, '\0', BUFLEN);
+        // free(message);
     }
 }
 
