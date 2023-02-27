@@ -12,7 +12,6 @@ int main(int argc, char *argv[])
     printf("============================================= \n");
     printf("\n");
 
-
     if (argc == 4){
         int MY_PORT = atoi(argv[1]);
         int OTHER_PORT = atoi(argv[3]);

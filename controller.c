@@ -27,7 +27,7 @@ static pthread_cond_t s_itemAvailtoReceive_CondVar = PTHREAD_COND_INITIALIZER;
 
 static pthread_mutex_t s_syncOkToSend_Mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t s_syncOkToReceive_Mutex = PTHREAD_MUTEX_INITIALIZER;
-bool CONTINUE = true;
+static bool CONTINUE = true;
 
 typedef struct Controller_s Controller;
 struct Controller_s
@@ -42,6 +42,12 @@ void die(char *s)
 {
     perror(s);
     exit(1);
+}
+
+void freeItem(void *pItem)
+{
+    free(pItem);
+    pItem = NULL;
 }
 
 void List_print(List *pList)
@@ -111,14 +117,11 @@ void SETUP_MY_PORT(int port)
 
 void *await_Input_Thread(void *vargp)
 {
-
+    char *message = NULL;
     while (true)
     {
-        char *message = malloc(sizeof(char[256]));
+        message = malloc(sizeof(char[256]));
         fgets(message, 256, stdin);
-
-        if (strcmp("!\n", message) == 0)
-            CONTINUE = false;
         // printf("pointer: %p ",message);
         pthread_mutex_lock(&s_syncOkToSend_Mutex);
         {
@@ -135,6 +138,10 @@ void *await_Input_Thread(void *vargp)
             pthread_cond_signal(&s_itemAvailtoSend_CondVar);
         }
         pthread_mutex_unlock(&s_syncOkToSend_Mutex);
+
+        if (strcmp("!\n", message) == 0){
+            CONTINUE = false;
+        }
     }
 }
 
@@ -213,13 +220,16 @@ void *receive_Message_Thread(void *vargp)
             pthread_cond_signal(&s_itemAvailtoReceive_CondVar);
         }
         pthread_mutex_unlock(&s_syncOkToReceive_Mutex);
+
+        if (strcmp("!\n", message) == 0){
+            CONTINUE = false;
+        }
         // puts(message);
         // List_append(&buffer.messages_receive, message);
 
         // print details of the client/peer and the data received
         // printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 
-        // free(message);
         // printf("------------- %s\n", message);
     }
     close(s);
@@ -260,18 +270,6 @@ void *print_Output_Thread(void *vargp)
     }
 }
 
-void threads_SetUP(){
-    pthread_create(&tid1, NULL, await_Input_Thread, (void *)&tid1);
-    pthread_create(&tid2, NULL, send_Message_Thread, (void *)&tid2);
-    pthread_create(&tid3, NULL, receive_Message_Thread, (void *)&tid3);
-    pthread_create(&tid4, NULL, print_Output_Thread, (void *)&tid4);
-
-    pthread_join(tid1, NULL);
-    pthread_join(tid2, NULL);
-    pthread_join(tid3, NULL);
-    pthread_join(tid4, NULL);
-
-}
 
 void threads_ShutDown(){
 
@@ -279,6 +277,10 @@ void threads_ShutDown(){
     pthread_cancel(tid2);
     pthread_cancel(tid3);
     pthread_cancel(tid4);
+    pthread_cancel(tid5);
+
+    List_free(&buffer.messages_send, freeItem);
+    List_free(&buffer.messages_receive, freeItem);
 
     pthread_mutex_destroy(&s_syncOkToSend_Mutex);
     pthread_mutex_destroy(&s_syncOkToReceive_Mutex);
@@ -292,20 +294,29 @@ void threads_ShutDown(){
 
 void *thread_Manager_Thread(void *vargp){
 
-    threads_SetUP();
+    while(CONTINUE == true);
+    threads_ShutDown();
 
-    // while(CONTINUE);
-
-    // threads_ShutDown();
-
-    // pthread_cancel();
-    
 }
+
+void threads_SetUP(){
+    pthread_create(&tid1, NULL, await_Input_Thread, (void *)&tid1);
+    pthread_create(&tid2, NULL, send_Message_Thread, (void *)&tid2);
+    pthread_create(&tid3, NULL, receive_Message_Thread, (void *)&tid3);
+    pthread_create(&tid4, NULL, print_Output_Thread, (void *)&tid4);
+    pthread_create(&tid5, NULL, thread_Manager_Thread, (void *)&tid5);
+
+    pthread_join(tid1, NULL);
+    pthread_join(tid2, NULL);
+    pthread_join(tid3, NULL);
+    pthread_join(tid4, NULL);
+    pthread_join(tid5, NULL);
+}
+
 
 
 void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 {
-
     List *messages_receive = List_create();
     List *messages_send = List_create();
     // create a UDP socket
@@ -323,8 +334,7 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 
     printf("MY_PORT: %d \n", MY_PORT);
 
-    pthread_create(&tid5, NULL, thread_Manager_Thread, (void *)&tid5);
-    pthread_join(tid5, NULL);
+    threads_SetUP();
     
 }
 
