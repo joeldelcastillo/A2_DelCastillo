@@ -184,7 +184,7 @@ void *send_Message_Thread(void *vargp)
 
 void *receive_Message_Thread(void *vargp)
 {
-
+    
     while (true)
     {
         char *message = malloc(sizeof(char[256]));
@@ -227,10 +227,10 @@ void *receive_Message_Thread(void *vargp)
 
 void *print_Output_Thread(void *vargp)
 {
-
+    char *pMessage = NULL;
+    char message[256] = "";
     while (true)
     {
-        char *message;
         pthread_mutex_lock(&s_syncOkToReceive_Mutex);
         {
             // printf("SEND OUTPUT tiene el lock\n");
@@ -242,7 +242,13 @@ void *print_Output_Thread(void *vargp)
             // printf("-------------------------------------- PRINT\n");
             // List_print(&buffer.messages_receive);
             List_first(&buffer.messages_receive);
-            message = List_remove(&buffer.messages_receive);
+            pMessage = List_remove(&buffer.messages_receive);
+            for(int i = 0; i< 256; i++){
+                message[i] = pMessage[i];
+            }
+            free(pMessage);
+            pMessage = NULL;
+
             pthread_cond_signal(&s_buffAvailtoReceive_CondVar);
         }
         pthread_mutex_unlock(&s_syncOkToReceive_Mutex);
