@@ -18,7 +18,7 @@ struct sockaddr_in si_me;
 struct sockaddr_in si_other;
 int s, i, slen = sizeof(si_other), recv_len;
 
-static pthread_t tid1, tid2, tid3, tid4;
+static pthread_t tid1, tid2, tid3, tid4, tid5;
 
 static pthread_cond_t s_buffAvailtoSend_CondVar = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t s_itemAvailtoSend_CondVar = PTHREAD_COND_INITIALIZER;
@@ -27,7 +27,7 @@ static pthread_cond_t s_itemAvailtoReceive_CondVar = PTHREAD_COND_INITIALIZER;
 
 static pthread_mutex_t s_syncOkToSend_Mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t s_syncOkToReceive_Mutex = PTHREAD_MUTEX_INITIALIZER;
-bool STOP = false;
+bool CONTINUE = true;
 
 typedef struct Controller_s Controller;
 struct Controller_s
@@ -56,13 +56,6 @@ void List_print(List *pList)
     }
     printf("}\n");
 }
-
-// void init_semaphores()
-// {
-//     pthread_mutex_init(&mutex, NULL);
-//     sem_init(&empty, 0, 1);
-//     sem_init(&full, 0, 0);
-// }
 
 int hostname_to_ip(char *hostname, char *ip)
 {
@@ -119,13 +112,13 @@ void SETUP_MY_PORT(int port)
 void *await_Input_Thread(void *vargp)
 {
 
-    while (STOP == false)
+    while (true)
     {
         char *message = malloc(sizeof(char[256]));
         fgets(message, 256, stdin);
 
         if (strcmp("!\n", message) == 0)
-            STOP = true;
+            CONTINUE = false;
         // printf("pointer: %p ",message);
         pthread_mutex_lock(&s_syncOkToSend_Mutex);
         {
@@ -147,9 +140,10 @@ void *await_Input_Thread(void *vargp)
 
 void *send_Message_Thread(void *vargp)
 {
-    while (STOP == false)
+    char *pMessage = NULL;
+    char message[256] = "";
+    while (true)
     {
-        char *message;
 
         pthread_mutex_lock(&s_syncOkToSend_Mutex);
         {
@@ -160,7 +154,14 @@ void *send_Message_Thread(void *vargp)
                 pthread_cond_wait(&s_itemAvailtoSend_CondVar, &s_syncOkToSend_Mutex);
             }
             // printf("-------------------------------------- UDP\n");
-            message = List_trim(&buffer.messages_send);
+            pMessage = List_trim(&buffer.messages_send);
+
+
+            for(int i = 0; i< 256; i++){
+                message[i] = pMessage[i];
+            }
+            free(pMessage);
+            pMessage = NULL;
             // List_print(&buffer.messages_send);
             pthread_cond_signal(&s_buffAvailtoSend_CondVar);
         }
@@ -171,11 +172,11 @@ void *send_Message_Thread(void *vargp)
             printf("died");
             die("sendto()");
         }
-
+        
         // receive a reply and print it
         // clear the buffer by filling null, it might have previously received data
         memset(message, '\0', BUFLEN);
-        // free(message);
+        
     }
 
     close(s);
@@ -184,7 +185,7 @@ void *send_Message_Thread(void *vargp)
 void *receive_Message_Thread(void *vargp)
 {
 
-    while (STOP == false)
+    while (true)
     {
         char *message = malloc(sizeof(char[256]));
         // receive a reply and print it
@@ -227,7 +228,7 @@ void *receive_Message_Thread(void *vargp)
 void *print_Output_Thread(void *vargp)
 {
 
-    while (STOP == false)
+    while (true)
     {
         char *message;
         pthread_mutex_lock(&s_syncOkToReceive_Mutex);
@@ -253,8 +254,52 @@ void *print_Output_Thread(void *vargp)
     }
 }
 
+void threads_SetUP(){
+    pthread_create(&tid1, NULL, await_Input_Thread, (void *)&tid1);
+    pthread_create(&tid2, NULL, send_Message_Thread, (void *)&tid2);
+    pthread_create(&tid3, NULL, receive_Message_Thread, (void *)&tid3);
+    pthread_create(&tid4, NULL, print_Output_Thread, (void *)&tid4);
+
+    pthread_join(tid1, NULL);
+    pthread_join(tid2, NULL);
+    pthread_join(tid3, NULL);
+    pthread_join(tid4, NULL);
+
+}
+
+void threads_ShutDown(){
+
+    pthread_cancel(tid1);
+    pthread_cancel(tid2);
+    pthread_cancel(tid3);
+    pthread_cancel(tid4);
+
+    pthread_mutex_destroy(&s_syncOkToSend_Mutex);
+    pthread_mutex_destroy(&s_syncOkToReceive_Mutex);
+
+    pthread_cond_destroy(&s_buffAvailtoReceive_CondVar);
+    pthread_cond_destroy(&s_buffAvailtoSend_CondVar);
+    pthread_cond_destroy(&s_itemAvailtoReceive_CondVar);
+    pthread_cond_destroy(&s_itemAvailtoSend_CondVar);
+}
+
+
+void *thread_Manager_Thread(void *vargp){
+
+    threads_SetUP();
+
+    // while(CONTINUE);
+
+    // threads_ShutDown();
+
+    // pthread_cancel();
+    
+}
+
+
 void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 {
+
     List *messages_receive = List_create();
     List *messages_send = List_create();
     // create a UDP socket
@@ -272,71 +317,10 @@ void SETUP_SOCKET_SERVER(int MYPORT, int OTHERPORT, char *OTHERCPU)
 
     printf("MY_PORT: %d \n", MY_PORT);
 
-    pthread_create(&tid1, NULL, await_Input_Thread, (void *)&tid1);
-    pthread_create(&tid2, NULL, send_Message_Thread, (void *)&tid2);
-    pthread_create(&tid3, NULL, receive_Message_Thread, (void *)&tid3);
-    pthread_create(&tid4, NULL, print_Output_Thread, (void *)&tid4);
-
-    pthread_join(tid1, NULL);
-    pthread_join(tid2, NULL);
-    pthread_join(tid3, NULL);
-    pthread_join(tid4, NULL);
-
-    pthread_mutex_destroy(&s_syncOkToSend_Mutex);
-    pthread_mutex_destroy(&s_syncOkToReceive_Mutex);
-
-    pthread_cond_destroy(&s_buffAvailtoReceive_CondVar);
-    pthread_cond_destroy(&s_buffAvailtoSend_CondVar);
-    pthread_cond_destroy(&s_itemAvailtoReceive_CondVar);
-    pthread_cond_destroy(&s_itemAvailtoSend_CondVar);
+    pthread_create(&tid5, NULL, thread_Manager_Thread, (void *)&tid5);
+    pthread_join(tid5, NULL);
+    
 }
 
-void server_shutDown()
-{
-}
-// void *send(void *vargp)
-// {
 
-//     // keep listening for data
-//     while (1)
-//     {
-//         char message[1024];
-//         printf("Enter message : ");
-//         scanf("%1023[\n]", message);
-//         fflush(stdout);
 
-//         // send the message
-//         if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other, slen) == -1)
-//         {
-//             die("sendto()");
-//         }
-//         // receive a reply and print it
-//         // clear the buffer by filling null, it might have previously received data
-//         memset(buf, '\0', BUFLEN);
-
-//         // try to receive some data, this is a blocking call
-//         if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other, &slen)) == -1)
-//         {
-//             die("recvfrom()");
-//         }
-
-//         puts(buf);
-
-//         // print details of the client/peer and the data received
-//         printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-//         printf("Data: %s\n", buf);
-//     }
-//     close(s);
-// }
-
-// Message receive_Message_Thread(char message[]){
-
-// }
-
-// decode message received
-// Message decode_Message(char[] message);
-
-// Send Message
-// int send_Message_Thread(Message message);
-
-// bool keyboard[256] = {0};
