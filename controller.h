@@ -8,7 +8,7 @@
 #include <errno.h> //For errno - the error number
 #include <netdb.h>	//hostent
 
-#define BUFLEN 512 // Max length of buffer
+#define BUFLEN 256 // Max length of buffer
 
 void SETUP_SOCKET_SERVER();
 
