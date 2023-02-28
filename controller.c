@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -76,7 +75,9 @@ void SETUP_OTHER_PORT(int port, char *cpu)
 {
     OTHER_PORT = port;
     printf("CPU: %s \n", cpu);
-    char host[] = "asb9700u-g01.csil.sfu.ca";
+    char host[20];
+    strcpy(host, cpu);
+    strcat(host, ".cs.surrey.sfu.ca");
     char ip[100];
     hostname_to_ip(host, ip);
     printf("%s resolved to %s", host, ip);
